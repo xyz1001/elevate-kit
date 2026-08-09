@@ -3,17 +3,34 @@
 add_executable(example)
 
 target_include_directories(example PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+add_library(example_module SHARED example_module.cpp)
+target_include_directories(example_module PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_compile_definitions(example_module PRIVATE EXAMPLE_MODULE_EXPORTS)
 
-file(GLOB_RECURSE SRC "*.h" "*.hpp" "*.cpp")
+file(GLOB_RECURSE SRC "*.h" "*.hpp" "main.cpp")
 target_sources(example PRIVATE ${SRC})
 
-target_link_libraries(example elevate_kit)
+target_link_libraries(example elevate_kit example_module)
+target_link_libraries(example_module elevate_kit)
+
+if(LINUX)
+    set_target_properties(example_module PROPERTIES
+        BUILD_RPATH "$ORIGIN;$<TARGET_FILE_DIR:elevate_kit>"
+        INSTALL_RPATH "$ORIGIN"
+    )
+elseif(APPLE)
+    set_target_properties(example_module PROPERTIES
+        BUILD_RPATH "@loader_path;$<TARGET_FILE_DIR:elevate_kit>"
+        INSTALL_RPATH "@loader_path"
+    )
+endif()
 
 if(WIN32 AND BUILD_SHARED_LIBS)
     add_custom_command(
         TARGET example
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:elevate_kit>" "$<TARGET_FILE_DIR:example>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:example_module>" "$<TARGET_FILE_DIR:example>"
     )
 endif()
 
@@ -22,8 +39,7 @@ if(LINUX)
 elseif(APPLE)
     set_target_properties(example PROPERTIES INSTALL_RPATH "@executable_path/../lib")
 endif()
-if(LINUX)
-    install(TARGETS example RUNTIME DESTINATION libexec)
-else()
-    install(TARGETS example RUNTIME DESTINATION bin)
-endif()
+install(TARGETS example example_module
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)

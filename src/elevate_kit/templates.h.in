@@ -1,0 +1,18 @@
+/*
+ * author: xyz1001 <zgzf1001@gmail.com>
+ * created at: 2026-08-11 16:08:09
+ * coding: utf-8
+ */
+
+#pragma once
+
+namespace elevate_kit {
+
+constexpr const char *kWindowsSchedulTaskTemplate =
+        R"xml(@TASK_SCHEDULER_TEMPLATE@)xml";
+constexpr const char *kLinuxPolkitPolicyTemplate =
+        R"xml(@POLKIT_POLICY_TEMPLATE@)xml";
+constexpr const char *kLinuxPolkitRuleTemplate =
+        R"js(@POLKIT_RULE_TEMPLATE@)js";
+
+}  // namespace elevate_kit
