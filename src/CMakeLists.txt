@@ -11,23 +11,41 @@ target_include_directories(${TARGET} PUBLIC ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BI
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/elevate_kit/version.h.in ${CMAKE_BINARY_DIR}/version.h)
 
-set(SRC elevate_kit/application_id.cpp elevate_kit/elevate_client.cpp elevate_kit/elevate_kit.cpp
-        elevate_kit/elevate_protocol.cpp elevate_kit/elevate_worker.cpp elevate_kit/task_registry.cpp
-)
+aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/elevate_kit SRC)
 if(WIN32)
-    list(APPEND SRC elevate_kit/windows/elevate_platform_windows.cpp)
+    aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/elevate_kit/windows SRC)
+    file(READ ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/windows/task_scheduler.xml TASK_SCHEDULER_TEMPLATE)
+    set_property(
+        DIRECTORY
+        APPEND
+        PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/windows/task_scheduler.xml
+    )
     target_link_libraries(${TARGET} taskschd ole32 oleaut32 shell32 advapi32)
 elseif(LINUX)
-    list(APPEND SRC elevate_kit/linux/elevate_platform_linux.cpp)
+    aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/elevate_kit/linux SRC)
+    target_link_libraries(${TARGET} ${CMAKE_DL_LIBS})
+    set(POLICY_TEMPLATE_FILE ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/linux/policy.xml)
+    set(RULE_TEMPLATE_FILE ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/linux/rule.js)
+    file(READ ${POLICY_TEMPLATE_FILE} POLKIT_POLICY_TEMPLATE)
+    file(READ ${RULE_TEMPLATE_FILE} POLKIT_RULE_TEMPLATE)
+    set_property(
+        DIRECTORY
+        APPEND
+        PROPERTY CMAKE_CONFIGURE_DEPENDS ${POLICY_TEMPLATE_FILE} ${RULE_TEMPLATE_FILE}
+    )
 else()
     message(FATAL_ERROR "elevate-kit supports Windows and Linux only")
 endif()
+configure_file(${CMAKE_CURRENT_LIST_DIR}/elevate_kit/templates.h.in ${CMAKE_BINARY_DIR}/templates.h @ONLY)
 target_sources(${TARGET} PRIVATE ${SRC})
 
+find_package(scope-lite CONFIG REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
 find_package(fmt REQUIRED CONFIG)
 find_package(nlohmann_json REQUIRED CONFIG)
+find_package(sole REQUIRED CONFIG)
 
-target_link_libraries(${TARGET} fmt::fmt nlohmann_json::nlohmann_json)
+target_link_libraries(${TARGET} CLI11::CLI11 fmt::fmt nlohmann_json::nlohmann_json sole::sole nonstd::scope-lite)
 
 add_library(elevate_kit $<TARGET_OBJECTS:${TARGET}>)
 target_link_libraries(elevate_kit $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
@@ -49,5 +67,17 @@ install(
 )
 
 if(MSVC AND BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_PDB_FILE:elevate_kit> DESTINATION bin)
+    install(
+        FILES $<TARGET_PDB_FILE:elevate_kit>
+        DESTINATION bin
+        OPTIONAL
+    )
+endif()
+
+if(WIN32)
+    install(FILES ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/windows/task_scheduler.xml DESTINATION share)
+elseif(LINUX)
+    install(FILES ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/linux/policy.xml
+                  ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/linux/rule.js DESTINATION share
+    )
 endif()

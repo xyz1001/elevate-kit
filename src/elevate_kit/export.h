@@ -33,4 +33,11 @@
   #define ELEVATE_KIT_API
   #define ELEVATE_KIT_LOCAL
 #endif // ELEVATE_KIT_DLL
+
+#if defined(_MSC_VER)
+#define ELEVATE_KIT_NOINLINE __declspec(noinline)
+#else
+#define ELEVATE_KIT_NOINLINE __attribute__((noinline))
+#endif
+
 // clang-format on

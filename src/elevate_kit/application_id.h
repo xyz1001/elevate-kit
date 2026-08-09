@@ -4,10 +4,19 @@
 
 #include <string>
 
-namespace elevate_kit::detail {
+namespace elevate_kit {
 
-ELEVATE_KIT_API void setConfiguredApplicationId(
-        const std::string &application_id);
-ELEVATE_KIT_API const std::string &configuredApplicationId();
+class ApplicationId {
+public:
+    static void Set(const std::string &application_id);
+    static std::string Get();
 
-}  // namespace elevate_kit::detail
+private:
+    ApplicationId();
+    static ApplicationId &Instance();
+
+private:
+    std::string application_id_;
+};
+
+}  // namespace elevate_kit

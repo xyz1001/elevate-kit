@@ -1,112 +1,117 @@
 # elevate-kit
 
-`elevate-kit` 是一个 C++17 的 Windows/Linux 特权任务调用库。任务处理器在宿主进程内通过静态宏注册；普通 client 通过本地 IPC 请求同一宿主的 elevated worker 执行任务。
+> A small, cross-platform C++17 library for safely invoking registered privileged tasks.
 
-当前实现支持 Windows 与 Arch Linux。`params_json` 是 UTF-8 不透明传输字符串；`module_id` 目前仅为兼容传输字段并被忽略，不提供动态模块加载。
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-## 构建与安装
+`elevate-kit` is a C++17 library for invoking privileged tasks. An application statically registers tasks that receive JSON in the host process; a regular process requests the privileged process through local IPC to execute a task and obtain a JSON result.
 
-依赖由 Conan 提供：`fmt/10.2.1`、`nlohmann_json/3.11.3`；启用测试时还需要 `doctest/2.4.11`。CMake 要求 3.25 或更新版本，标准为 C++17。
+Currently supports **Windows** and **Linux**; macOS and other platforms are not supported.
 
-### Windows Debug
+## Contents
 
-```powershell
-conan install . -of build -s build_type=Debug -o shared=True -o test=True -o example=True --build=missing
-cmake -S . -B build -G "Ninja Multi-Config" `
-  -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake `
-  -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=ON -DBUILD_EXAMPLE=ON
-cmake --build build --config Debug
-cmake --install build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
-& .\build\install\bin\example.exe
-```
+- [Features](#features)
+- [Dependencies](#dependencies)
+- [Build, install, and run](#build-install-and-run)
+- [Minimal API example](#minimal-api-example)
+- [Application ID](#application-id)
+- [Logging callbacks](#logging-callbacks)
+- [Production deployment requirements](#production-deployment-requirements)
 
-Windows Debug 的示例宿主和共享 DLL 位于 `build/install/bin`。公共头安装在
-`build/install/include/elevate_kit/`。该 Debug 布局用于开发验证，不是 Release 免密部署步骤。
+## Features
 
-### Windows Release 部署约束
+- **Single host application**: No additional resident service or separate elevation helper needs to be deployed; the same host application starts as a privileged process on demand and executes tasks. Privileged and regular business logic can remain in the same codebase and modules, without splitting, synchronizing, or maintaining another privileged service implementation.
+- **Small integration footprint**: Register a JSON task and call `CallTask` to hand sensitive operations to the privileged process, without maintaining an IPC protocol yourself.
+- **On-demand privileges**: The privileged process starts only when a privileged task is called, avoiding the expanded attack surface of a permanently running high-privilege service.
+- **Consistent cross-platform interface**: Windows and Linux use the same C++ API, hiding differences in elevation and process communication between platforms.
+- **Restricted privileged operations**: The privileged process executes only explicitly registered tasks, rather than providing a general-purpose command execution entry point; call parameters and results both use JSON, making business operations easy to define and audit.
+- **Multi-layer communication validation**: Each call uses an independent IPC session and validates the peer process identity and host path, reducing the risk of local process impersonation.
+- **Secure deployment requirements**: Windows Release requires the host to be located under Program Files; Linux Release requires the host to be owned by root and not writable by all users.
+- **Modular application support**: Statically registered tasks can be loaded from DLL/SO, supporting applications split into plugins or modules.
 
-将 Conan、构建、安装和 CTest 命令中的配置改为 `Release`。Release 宿主必须位于
-`%ProgramFiles%` 下；库和运行时文件应按实际安装结果部署。
+## Dependencies
 
-### Arch Linux
+- CMake 3.25 or newer;
+- A C++17 compiler and Ninja;
+- Conan;
+
+> **Prerequisites:** Windows requires an available MSVC/Visual Studio C++ toolchain. The real privileged flow on Arch Linux also requires `systemd`, `polkit`, and `pkexec`. This document does not provide commands for automatically installing system dependencies.
+
+## Build, install, and run
 
 ```sh
-conan install . -of build -s build_type=Release -o shared=True -o test=True -o example=True --build=missing
-cmake -S . -B build -G "Ninja Multi-Config" \
-  -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake \
-  -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=ON -DBUILD_EXAMPLE=ON
-cmake --build build --config Release
-cmake --install build --config Release
-ctest --test-dir build -C Release --output-on-failure
-./build/install/libexec/example
+conan install . -o example=True -o test=True
+cmake --preset conan-default --fresh
+cmake --build build --target install
+./build/install/bin/example
 ```
 
-Arch 验证依赖 systemd、polkit、pkexec、CMake、GCC、Ninja 和 Conan；本文不提供自动安装逻辑。
-Release Linux host 的安装布局是 `/usr/libexec/`，库是 `/usr/lib/`（使用安装前缀为
-`/usr` 的部署）。这是本 SDK 的部署约束，不代表 Arch 默认软件包布局。
+The default installation prefix is `build/install`. Public headers are located in `include/elevate_kit/`, the library in `lib/`, and examples and other runtime files in `bin/`. When tests or examples are not needed during the build, the `test` and `example` options can be disabled and the corresponding `BUILD_TEST` and `BUILD_EXAMPLE` CMake options omitted.
 
-## 最小 API
+To install to a system location, configure `CMAKE_INSTALL_PREFIX` (for example, `/usr`) in the generated CMake preset, then perform the installation. The installed library, dependencies, and runtime files must be deployed together.
+
+## Minimal API example
+
+The following example uses the same API form as the repository's `example/main.cpp`:
 
 ```cpp
 #include "elevate_kit/elevate_kit.h"
 
-REGISTER_ELEVATED_TASK("Example_Task",
-                       [](const std::string& params_json) { return true; });
+#include <filesystem>
+#include <fstream>
 
-int main(int argc, char* argv[]) {
-    elevate_kit::ElevateKit::setApplicationId("com.example.product");
+REGISTER_ELEVATED_TASK(example_task, [](const nlohmann::json &params) {
+    const auto filename = params.at("filename").get<std::string>();
+    const auto path = std::filesystem::temp_directory_path() / filename;
+    std::ofstream(path) << "created by elevate-kit\n";
+    return nlohmann::json{{"filesize", std::filesystem::file_size(path)}};
+});
 
-    if (elevate_kit::ElevateKit::process(argc, argv)) return 0;
-    return elevate_kit::ElevateKit::runTask("Example_Task", "{}") ? 0 : 1;
+int main(int argc, char *argv[]) {
+    elevate_kit::Process(argc, argv);
+
+    const auto result = elevate_kit::CallTask(
+        "example_task", nlohmann::json{{"filename", "elevate-kit.txt"}});
+    if (result.is_null()) {
+        return 1;  // 调用失败
+    }
+    return 0;
 }
 ```
 
-`setApplicationId()` 必须在 `process()` 或 `runTask()` 前调用。未设置或传入空值时，
-平台使用当前宿主进程文件名作为 fallback；应用 ID 规范化后只保留 ASCII 字母、数字、
-`.`、`-`，其他字符映射为 `-`，空结果使用 `host`。应用 ID 不包含用户 SID。
+The task handler type is `std::function<nlohmann::json(const nlohmann::json&)>`. On success, `CallTask(task_name, params)` returns the JSON produced by the task; on failure, it returns **null JSON**; do not treat the return value as a `bool` or `std::string`. When an explicit module path is needed, use the public three-argument `CallTask` overload.
 
-同名 fallback 或相同显式 ID 会共享平台配置；需要共存的不同产品必须设置不同且稳定的 ID。
+`Process(int argc, char *argv[])` returns `void`. A regular process should call it and then continue with its own logic; it handles the privileged-process and installation-flow launch scenarios used by the library. If the application itself is launched as a privileged process, it exits after processing.
 
-`REGISTER_ELEVATED_TASK` 是静态注册宏，处理器类型为 `bool(const std::string&)`。
-公共 API 位于 `elevate_kit/elevate_kit.h`，类名是 `elevate_kit::ElevateKit`。
+## Application ID
 
-## 内部模式与返回值
-
-真实 worker CLI 仅供内部使用：
-
-```text
---elevated --elevate-ipc <id>
+```cpp
+elevate_kit::SetApplicationId("com.example.product");
 ```
 
-它不执行 `--elevated <task> <params>` 形式的 direct task CLI。`--elevated-install` 是内部安装/修复模式。
+Set a stable and unique application ID before `Process` or `CallTask`. It distinguishes application configurations on the platform; different products must use different IDs. The ID may contain only ASCII letters, digits, underscores (`_`), hyphens (`-`), and periods (`.`); it must not contain spaces or other special characters. A stable name such as `com.example.product` is recommended. If it is not set or an empty value is passed, the library uses the host filename as a fallback.
 
-`ElevateKit::process()` 返回 `true` 只表示内部模式已被消费，不代表 worker 或 installer 成功；
-消费后宿主必须退出。example 的 installer 路径是额外的参考实现，会根据 readiness 决定退出码。
+## Logging callbacks
 
-首次 Windows 修复可能显示 UAC；Arch Linux 修复需要 `pkexec`。`runTask()` 的约 3 秒预算只覆盖
-worker 启动后的 IPC 连接、request/response 和 worker 完成阶段；互动安装/修复不属于该预算。
-超时返回 `false` 不保证任务没有继续执行。
+Callbacks can be injected for the four levels: debug, info, warn, and error:
 
-Windows Task Scheduler 使用 `ElevateKit.<id>` 命名任务；Arch Linux action/policy/rule 基于
-`com.elevatekit.<id>.elevated`。旧的固定命名不会被视为 ready，也不承诺迁移或删除。
+```cpp
+void OnLog(std::string_view message) {
+    // message 仅在本次回调期间有效
+}
 
-Arch Linux 的 Polkit 授权边界是每个应用 ID 派生的 custom action：policy 将该 action
-绑定到 canonical host executable path，并要求首个参数为 `--elevated`；对应 rule 只授权
-匹配该 action。它不按用户或会话条件限制授权。授权后的 Worker 仍通过 Unix socket
-验证相同的 canonical host、root peer 身份和 IPC 请求。
+elevate_kit::SetLogCallbacks({OnLog, OnLog, OnLog, OnLog});
+// 恢复默认 stdout/stderr 输出：
+elevate_kit::ResetLogCallbacks();
+```
 
-## Windows console 限制
+Callbacks that are not provided use the default output: debug/info are written to stdout, and warn/error to stderr. Callbacks should not throw exceptions and must ensure their own lifetime; the privileged process runs independently, so callbacks must be configured before it starts if its logs are needed.
 
-`FreeConsole()` 仅是参考宿主方案：worker 入口可在 Windows 下、任何 worker 输出和
-`process()` 前，仅对首参数精确为 `--elevated` 的进程调用它，以缩短 console 闪现。
-它不保证无窗口，且 worker 的 stdout/stderr 诊断不可用；完全无窗口需要 GUI host 或 GUI worker。
+## Production deployment requirements
 
-## 验证状态
+> **Deployment notes:** The following requirements apply to production deployment.
 
-- Windows Debug 已人工验证 UAC repair、Task Scheduler/RunEx 和 Named Pipe 完整成功。
-- Windows Release 尚未验证。
-- Arch WSL 已完成 action-only Polkit rule 下的 strict Debug/Release build、install、CTest、policy/rule
-  installer 及 ordinary-user pkcheck YES、pkexec Worker、Unix Socket、static handler response 和 exit 0
-  端到端验证；测试 policy/rule 已清理。
-- CTest 仅覆盖协议与 CLI 单元测试，不等同于真实 UAC、Task Scheduler、Polkit 或端到端验证。
+- The Windows Release elevated host must be installed under `%ProgramFiles%`; the first repair may display UAC.
+- Windows recommends using a GUI-subsystem application as the host; a console application may briefly flash a black window when launched as a privileged process.
+- The Linux privileged process must exist and not be writable by all users; in Release it must also be owned by root. Polkit binds the absolute path of the privileged process at configuration time and writes the configuration to `/usr/share/polkit-1/actions/` and `/etc/polkit-1/rules.d/`.
+- A `CallTask` timeout or null JSON only means that this call did not successfully return a result; it does not guarantee that the task did not start or continue executing.

@@ -3,26 +3,31 @@
 #include <unordered_map>
 #include <utility>
 
-namespace elevate_kit::detail {
-namespace {
-std::unordered_map<std::string, TaskHandler> &tasks() {
-    static std::unordered_map<std::string, TaskHandler> instance;
+namespace elevate_kit {
+
+TaskRegistry::TaskRegistry() = default;
+
+TaskRegistry::~TaskRegistry() = default;
+
+TaskRegistry &TaskRegistry::Instance() {
+    static TaskRegistry instance;
     return instance;
 }
-}  // namespace
 
-void registerTask(const std::string &task_name, TaskHandler handler) {
-    if (task_name.empty() || !handler) {
+void TaskRegistry::RegisterTask(const std::string &task_name, Task task) {
+    if (task_name.empty() || !task) {
         return;
     }
-    tasks()[task_name] = std::move(handler);
+    Instance().tasks_[task_name] = std::move(task);
 }
 
-bool runTask(const std::string &task_name, const std::string &params_json) {
-    const auto it = tasks().find(task_name);
-    if (it == tasks().end()) {
+nlohmann::json TaskRegistry::RunTask(const std::string &task_name,
+                                     const nlohmann::json &params) {
+    auto it = Instance().tasks_.find(task_name);
+    if (it == Instance().tasks_.end()) {
         return false;
     }
-    return it->second(params_json);
+    return it->second(params);
 }
-}  // namespace elevate_kit::detail
+
+}  // namespace elevate_kit

@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows VS2022/MSVC Release
+    runs-on: windows-2022
+    env:
+      CONAN_HOME: ${{ github.workspace }}/.conan2
+      GIT_COMMIT: ${{ github.sha }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC development environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONAN_HOME }}
+          key: conan-windows-vs2022-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-windows-vs2022-
+
+      - name: Install build tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install conan
+          conan profile detect --force
+
+      - name: Install Conan dependencies
+        shell: pwsh
+        run: >-
+          conan install . --build=missing
+          -s build_type=Release -o '&:shared=True'
+
+      - name: Configure
+        shell: pwsh
+        run: cmake --preset=conan-default --fresh
+
+      - name: Build
+        run: cmake --build build --config Release --target install --parallel
+
+      - name: Upload Windows install directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: elevate-kit-windows-vs2022-msvc-release
+          path: build/install
+          if-no-files-found: error
+
+  linux:
+    name: Ubuntu GCC-10 Release
+    runs-on: ubuntu-22.04
+    env:
+      CONAN_HOME: ${{ github.workspace }}/.conan2
+      GIT_COMMIT: ${{ github.sha }}
+      CC: gcc-10
+      CXX: g++-10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install GCC-10 and Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-10 g++-10 ninja-build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache Conan
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONAN_HOME }}
+          key: conan-ubuntu-gcc10-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-ubuntu-gcc10-
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install conan
+          conan profile detect --force
+
+      - name: Install Conan dependencies
+        run: >-
+          conan install . --build=missing
+          -s build_type=Release -s compiler=gcc -s compiler.version=10
+          -s compiler.libcxx=libstdc++11
+          -o '&:shared=True'
+
+      - name: Configure
+        run: cmake --preset=conan-default --fresh
+
+      - name: Build
+        run: cmake --build build --config Release --target install --parallel
+
+      - name: Upload Ubuntu install directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: elevate-kit-ubuntu-gcc10-release
+          path: build/install
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, linux]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows install directory
+        uses: actions/download-artifact@v4
+        with:
+          name: elevate-kit-windows-vs2022-msvc-release
+          path: windows-install
+
+      - name: Download Ubuntu install directory
+        uses: actions/download-artifact@v4
+        with:
+          name: elevate-kit-ubuntu-gcc10-release
+          path: ubuntu-install
+
+      - name: Package release archives
+        run: |
+          zip -r "elevate-kit-${GITHUB_REF_NAME}-windows-vs2022-msvc.zip" windows-install
+          zip -r "elevate-kit-${GITHUB_REF_NAME}-ubuntu-gcc10.zip" ubuntu-install
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          "elevate-kit-${GITHUB_REF_NAME}-windows-vs2022-msvc.zip"
+          "elevate-kit-${GITHUB_REF_NAME}-ubuntu-gcc10.zip"
+          --generate-notes

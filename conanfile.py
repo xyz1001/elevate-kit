@@ -7,9 +7,10 @@ import os
 
 class ElevateKitConan(ConanFile):
     name = "elevate-kit"
-    version = "0.0.1"
+    version = "1.0.0"
     user = "xyz1001"
     package_type = "library"
+    license = "MIT"
     author = "xyz1001 zgzf1001@gmail.com"
     url = "https://github.com/xyz1001/elevate-kit"
     description = "Seamless, Zero-Prompt & Kernel-Verified Cross-Platform Privilege Escalation Framework"
@@ -36,8 +37,11 @@ class ElevateKitConan(ConanFile):
         git.checkout(commit=sources["commit"])
 
     def requirements(self):
+        self.requires("cli11/2.6.0")
         self.requires("fmt/10.2.1")
         self.requires("nlohmann_json/3.11.3")
+        self.requires("scope-lite/0.2.0")
+        self.requires("sole/1.0.4")
         if self.options.test:
             self.test_requires("doctest/2.4.11")
 

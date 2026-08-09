@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"
+      version="1.3">
+  <Principals>
+    <Principal id="Author">
+      <UserId>{}</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <Enabled>true</Enabled>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{}</Command>
+      <Arguments>--elevate-pipe=$(Arg0)</Arguments>
+      <WorkingDirectory>{}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

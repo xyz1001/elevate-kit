@@ -5,9 +5,27 @@
 #include <functional>
 #include <string>
 
-namespace elevate_kit::detail {
-using TaskHandler = std::function<bool(const std::string &)>;
-ELEVATE_KIT_API void registerTask(const std::string &task_name,
-                                  TaskHandler handler);
-bool runTask(const std::string &task_name, const std::string &params_json);
-}  // namespace elevate_kit::detail
+#include <nlohmann/json.hpp>
+
+namespace elevate_kit {
+class TaskRegistry {
+public:
+    ~TaskRegistry();
+
+public:
+    using Task = std::function<nlohmann::json(const nlohmann::json &)>;
+
+    static void RegisterTask(const std::string &task_name, Task task);
+
+    static nlohmann::json RunTask(const std::string &task_name,
+                                  const nlohmann::json &params);
+
+private:
+    TaskRegistry();
+
+    static TaskRegistry &Instance();
+
+private:
+    std::unordered_map<std::string, Task> tasks_;
+};
+}  // namespace elevate_kit
