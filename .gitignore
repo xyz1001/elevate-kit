@@ -90,3 +90,6 @@ enc_temp_folder/
 
 # clang
 .cache/
+
+# Local deepwork state
+.slim/deepwork/
