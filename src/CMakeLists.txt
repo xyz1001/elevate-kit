@@ -11,16 +11,32 @@ target_include_directories(${TARGET} PUBLIC ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BI
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/elevate_kit/version.h.in ${CMAKE_BINARY_DIR}/version.h)
 
-file(GLOB_RECURSE SRC "*.h" "*.hpp" "*.cpp")
+set(SRC elevate_kit/application_id.cpp elevate_kit/elevate_client.cpp elevate_kit/elevate_kit.cpp
+        elevate_kit/elevate_protocol.cpp elevate_kit/elevate_worker.cpp elevate_kit/task_registry.cpp
+)
+if(WIN32)
+    list(APPEND SRC elevate_kit/windows/elevate_platform_windows.cpp)
+    target_link_libraries(${TARGET} taskschd ole32 oleaut32 shell32 advapi32)
+elseif(LINUX)
+    list(APPEND SRC elevate_kit/linux/elevate_platform_linux.cpp)
+else()
+    message(FATAL_ERROR "elevate-kit supports Windows and Linux only")
+endif()
 target_sources(${TARGET} PRIVATE ${SRC})
 
 find_package(fmt REQUIRED CONFIG)
+find_package(nlohmann_json REQUIRED CONFIG)
 
-target_link_libraries(${TARGET} fmt::fmt)
+target_link_libraries(${TARGET} fmt::fmt nlohmann_json::nlohmann_json)
 
 add_library(elevate_kit $<TARGET_OBJECTS:${TARGET}>)
 target_link_libraries(elevate_kit $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
 target_include_directories(elevate_kit PUBLIC ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR})
+
+install(
+    FILES ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/elevate_kit.h ${CMAKE_CURRENT_LIST_DIR}/elevate_kit/export.h
+    DESTINATION include/elevate_kit
+)
 
 if(LINUX)
     set_target_properties(elevate_kit PROPERTIES INSTALL_RPATH "$ORIGIN")

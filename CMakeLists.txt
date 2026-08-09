@@ -6,10 +6,6 @@ project(elevate_kit)
 
 include(GNUInstallDirs)
 
-if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/.git)
-    execute_process(COMMAND pre-commit install COMMAND_ERROR_IS_FATAL ANY)
-endif()
-
 if(DEFINED ENV{GIT_COMMIT})
     set(VERSION_NAME "${VERSION_NAME}-$ENV{GIT_COMMIT}")
 endif()
@@ -23,7 +19,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-file(CREATE_LINK "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_SOURCE_DIR}/compile_commands.json" SYMBOLIC)
 
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -74,6 +69,7 @@ option(BUILD_EXAMPLE "build example" OFF)
 
 add_subdirectory(src)
 if(BUILD_TEST)
+    enable_testing()
     add_subdirectory(test)
 endif()
 
@@ -87,13 +83,15 @@ endif()
 
 if(DEPLOY)
     if(WIN32)
-        include(InstallRequiredSystemLibraries)
         set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
         set(CMAKE_INSTALL_DEBUG_LIBRARIES TRUE)
+        include(InstallRequiredSystemLibraries)
     endif()
-    install(
-        DIRECTORY ${CMAKE_BINARY_DIR}/import/
-        DESTINATION .
-        USE_SOURCE_PERMISSIONS
-    )
+    if(IS_DIRECTORY ${CMAKE_BINARY_DIR}/import)
+        install(
+            DIRECTORY ${CMAKE_BINARY_DIR}/import/
+            DESTINATION .
+            USE_SOURCE_PERMISSIONS
+        )
+    endif()
 endif()

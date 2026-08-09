@@ -9,7 +9,14 @@ target_sources(unittest PRIVATE ${SRC})
 
 find_package(doctest REQUIRED CONFIG)
 
-target_link_libraries(unittest doctest::doctest elevate_kit_obj)
+target_link_libraries(unittest doctest::doctest elevate_kit)
+
+add_test(NAME unittest COMMAND unittest)
+if(WIN32)
+    set_tests_properties(unittest PROPERTIES ENVIRONMENT "PATH=$<TARGET_FILE_DIR:elevate_kit>")
+elseif(UNIX)
+    set_tests_properties(unittest PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:elevate_kit>")
+endif()
 
 if(LINUX)
     set_target_properties(unittest PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")

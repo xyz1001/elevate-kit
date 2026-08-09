@@ -37,6 +37,7 @@ class ElevateKitConan(ConanFile):
 
     def requirements(self):
         self.requires("fmt/10.2.1")
+        self.requires("nlohmann_json/3.11.3")
         if self.options.test:
             self.test_requires("doctest/2.4.11")
 

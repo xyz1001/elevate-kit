@@ -9,12 +9,21 @@ target_sources(example PRIVATE ${SRC})
 
 target_link_libraries(example elevate_kit)
 
+if(WIN32 AND BUILD_SHARED_LIBS)
+    add_custom_command(
+        TARGET example
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:elevate_kit>" "$<TARGET_FILE_DIR:example>"
+    )
+endif()
+
 if(LINUX)
     set_target_properties(example PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
 elseif(APPLE)
     set_target_properties(example PROPERTIES INSTALL_RPATH "@executable_path/../lib")
 endif()
-install(
-    TARGETS example
-    RUNTIME DESTINATION bin
-)
+if(LINUX)
+    install(TARGETS example RUNTIME DESTINATION libexec)
+else()
+    install(TARGETS example RUNTIME DESTINATION bin)
+endif()
