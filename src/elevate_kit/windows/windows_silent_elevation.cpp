@@ -356,7 +356,6 @@ std::optional<std::uint64_t> RunScheduledWorker(const std::string &id) {
 
 bool InstallTask(const std::wstring &host,
                  const std::wstring &working_directory,
-                 const std::wstring &user_sid,
                  const std::string &application_id) {
     LogInfo("install: connecting to Task Scheduler");
     Microsoft::WRL::ComPtr<ITaskService> service;
@@ -376,7 +375,7 @@ bool InstallTask(const std::wstring &host,
     VARIANT empty;
     VariantInit(&empty);
     std::wstring xml = fmt::format(Utf8ToWide(kWindowsSchedulTaskTemplate),
-                                   user_sid, host, working_directory);
+                                   host, working_directory);
     std::wstring registered_task_name = TaskName(application_id);
     BSTR task_name = SysAllocString(registered_task_name.c_str());
     BSTR xml_text = SysAllocString(xml.c_str());
@@ -618,8 +617,7 @@ public:
             LogWarn("install: COM apartment unavailable");
             return false;
         }
-        return InstallTask(current->first, current->second, *user_sid,
-                           application_id);
+        return InstallTask(current->first, current->second, application_id);
     }
     std::optional<std::uint64_t> LaunchElevatedService(
             const std::vector<std::string> &arguments) override {
