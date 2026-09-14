@@ -13,7 +13,7 @@ namespace elevate_kit {
 ApplicationId::ApplicationId()
         : application_id_(
                   std::filesystem::path(::elevate_kit::GetProcessPath(GetPid()))
-                          .filename()
+                          .stem()
                           .string()) {}
 
 ApplicationId &ApplicationId::Instance() {
