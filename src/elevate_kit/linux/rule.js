@@ -1,5 +1,5 @@
 polkit.addRule(function(action) {{
-  if (action.id == "{}") {{
+  if (action.id == "{action}") {{
     return polkit.Result.YES;
   }}
 }});

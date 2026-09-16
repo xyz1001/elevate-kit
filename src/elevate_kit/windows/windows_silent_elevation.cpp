@@ -374,8 +374,9 @@ bool InstallTask(const std::wstring &host,
     }
     VARIANT empty;
     VariantInit(&empty);
-    std::wstring xml = fmt::format(Utf8ToWide(kWindowsSchedulTaskTemplate),
-                                   host, working_directory);
+    std::wstring xml = fmt::format(
+            Utf8ToWide(kWindowsSchedulTaskTemplate), fmt::arg(L"host", host),
+            fmt::arg(L"working_directory", working_directory));
     std::wstring registered_task_name = TaskName(application_id);
     BSTR task_name = SysAllocString(registered_task_name.c_str());
     BSTR xml_text = SysAllocString(xml.c_str());

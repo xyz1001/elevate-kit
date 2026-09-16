@@ -116,11 +116,14 @@ public:
             return false;
         }
         if (ReadFile(GetPolkitActionPath(action_name)) !=
-            fmt::format(kLinuxPolkitPolicyTemplate, action_name, path)) {
+            fmt::format(kLinuxPolkitPolicyTemplate,
+                        fmt::arg("action", action_name),
+                        fmt::arg("host", path))) {
             LogWarn("silent elevation policy file exists and matches");
         }
         if (ReadFile(GetPolkitRulePath(action_name)) !=
-            fmt::format(kLinuxPolkitRuleTemplate, action_name)) {
+            fmt::format(kLinuxPolkitRuleTemplate,
+                        fmt::arg("action", action_name))) {
             LogWarn("silent elevation rule file exists and matches");
         }
         std::vector<std::string> args{"pkcheck", "--action-id", action_name,
@@ -139,8 +142,9 @@ public:
         std::string action_name = GeneratePolkitActionName(application_id);
 
         auto policy_path = GetPolkitActionPath(action_name);
-        std::string policy =
-                fmt::format(kLinuxPolkitPolicyTemplate, action_name, path);
+        std::string policy = fmt::format(kLinuxPolkitPolicyTemplate,
+                                         fmt::arg("action", action_name),
+                                         fmt::arg("host", path));
         if (!WriteFile(policy_path, policy)) {
             LogError("Failed to write policy file");
             return false;
@@ -150,7 +154,8 @@ public:
         }
 
         auto rule_path = GetPolkitRulePath(action_name);
-        std::string rule = fmt::format(kLinuxPolkitRuleTemplate, action_name);
+        std::string rule = fmt::format(kLinuxPolkitRuleTemplate,
+                                       fmt::arg("action", action_name));
         if (!WriteFile(rule_path, rule)) {
             LogError("Failed to write rule file");
             return false;

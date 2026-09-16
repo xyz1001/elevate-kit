@@ -13,9 +13,9 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>{}</Command>
+      <Command>{host}</Command>
       <Arguments>--elevate-pipe=$(Arg0)</Arguments>
-      <WorkingDirectory>{}</WorkingDirectory>
+      <WorkingDirectory>{working_directory}</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>

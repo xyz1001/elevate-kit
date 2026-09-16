@@ -7,8 +7,7 @@ import os
 
 class ElevateKitConan(ConanFile):
     name = "elevate-kit"
-    version = "1.0.2"
-    user = "xyz1001"
+    version = "1.0.3"
     package_type = "library"
     license = "MIT"
     author = "xyz1001 zgzf1001@gmail.com"
@@ -53,6 +52,8 @@ class ElevateKitConan(ConanFile):
         self.cpp.build.bindirs = ["install/bin"]
         self.cpp.build.libdirs = ["install/lib"]
         self.cpp.build.includedirs = ["install/include"]
+        self.cpp.build.resdirs = ["install/share"]
+        self.cpp.package.resdirs = ["share"]
         self.cpp.source.includedirs.clear()
 
     def generate(self):
