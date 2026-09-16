@@ -166,6 +166,25 @@ public:
         return true;
     }
 
+    bool RevokeSilentElevation(
+            const std::string &application_id) override {
+        std::string action_name = GeneratePolkitActionName(application_id);
+        auto remove_file = [](const std::string &path) {
+            if (unlink(path.c_str()) == 0 || errno == ENOENT) {
+                return true;
+            }
+            int error = errno;
+            LogError(
+                    "silent elevation configuration removal failed: "
+                    "path='{}' errno={}",
+                    path, error);
+            return false;
+        };
+        bool policy_removed = remove_file(GetPolkitActionPath(action_name));
+        bool rule_removed = remove_file(GetPolkitRulePath(action_name));
+        return policy_removed && rule_removed;
+    }
+
     std::optional<std::uint64_t> LaunchElevatedService(
             const std::vector<std::string> &arguments) override {
         std::string path = GetProcessPath(GetPid());

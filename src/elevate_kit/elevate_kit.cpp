@@ -37,6 +37,7 @@ void Process(int argc, char *argv[]) {
     CLI::App app{"elevate-kit internal worker"};
     std::string session_id;
     bool install_requested = false;
+    bool uninstall_requested = false;
     app.add_option("--elevate-pipe", session_id)
             ->expected(1)
             ->multi_option_policy(CLI::MultiOptionPolicy::Throw)
@@ -46,9 +47,14 @@ void Process(int argc, char *argv[]) {
                                              : std::string{};
                     },
                     "non-empty UUID"));
-    app.add_flag("--elevate-install", install_requested)
+    auto install_option =
+            app.add_flag("--elevate-install", install_requested)
+                    ->expected(0, 1)
+                    ->multi_option_policy(CLI::MultiOptionPolicy::Throw);
+    app.add_flag("--elevate-uninstall", uninstall_requested)
             ->expected(0, 1)
-            ->multi_option_policy(CLI::MultiOptionPolicy::Throw);
+            ->multi_option_policy(CLI::MultiOptionPolicy::Throw)
+            ->excludes(install_option);
     app.allow_extras(false);
     try {
         app.parse(argc, argv);
@@ -56,7 +62,7 @@ void Process(int argc, char *argv[]) {
         return;
     }
 
-    if (session_id.empty() && !install_requested) {
+    if (session_id.empty() && !install_requested && !uninstall_requested) {
         return;
     }
 #ifdef _WIN32
@@ -67,6 +73,12 @@ void Process(int argc, char *argv[]) {
     if (!elevation->IsElevated()) {
         LogWarn("worker process is not elevated");
         _exit(-1);
+    }
+    if (uninstall_requested) {
+        auto ok = elevation->RevokeSilentElevation(ApplicationId::Get());
+        if (session_id.empty()) {
+            _exit(ok ? 0 : -1);
+        }
     }
     if (install_requested) {
         auto ok = elevation->ConfigureSilentElevation(ApplicationId::Get());

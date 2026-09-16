@@ -7,7 +7,7 @@ import os
 
 class ElevateKitConan(ConanFile):
     name = "elevate-kit"
-    version = "1.0.4"
+    version = "1.0.5"
     package_type = "library"
     license = "MIT"
     author = "xyz1001 zgzf1001@gmail.com"

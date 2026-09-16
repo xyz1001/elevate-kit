@@ -39,5 +39,11 @@ TEST_CASE("Process returns for invalid CLI input") {
     char *invalid_argv[] = {program, invalid_option, nullptr};
     elevate_kit::Process(2, invalid_argv);
 
+    char install_option[] = "--elevate-install";
+    char uninstall_option[] = "--elevate-uninstall";
+    char *conflicting_install_argv[] = {program, install_option,
+                                        uninstall_option, nullptr};
+    elevate_kit::Process(3, conflicting_install_argv);
+
     CHECK(elevate_kit::ApplicationId::Get() == kFinalApplicationId);
 }

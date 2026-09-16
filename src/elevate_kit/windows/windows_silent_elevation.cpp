@@ -398,6 +398,40 @@ bool InstallTask(const std::wstring &host,
     return SUCCEEDED(result);
 }
 
+bool RemoveTask(const std::string &application_id) {
+    LogInfo("uninstall: connecting to Task Scheduler");
+    Microsoft::WRL::ComPtr<ITaskService> service;
+    if (!OpenService(service)) {
+        return false;
+    }
+    Microsoft::WRL::ComPtr<ITaskFolder> folder;
+    BSTR root = SysAllocString(L"\\");
+    HRESULT folder_result =
+            root == nullptr
+                    ? E_OUTOFMEMORY
+                    : service->GetFolder(root, folder.ReleaseAndGetAddressOf());
+    SysFreeString(root);
+    if (!TaskSchedulerSucceeded(L"GetFolder", folder_result)) {
+        return false;
+    }
+    std::wstring registered_task_name = TaskName(application_id);
+    BSTR task_name = SysAllocString(registered_task_name.c_str());
+    if (task_name == nullptr) {
+        return false;
+    }
+    HRESULT result = folder->DeleteTask(task_name, 0);
+    SysFreeString(task_name);
+    if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) ||
+        result == HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)) {
+        return true;
+    }
+    if (!TaskSchedulerSucceeded(L"ITaskFolder::DeleteTask", result)) {
+        return false;
+    }
+    LogInfo("uninstall: Task Scheduler deletion succeeded");
+    return true;
+}
+
 bool TaskMatches(const std::wstring &host,
                  const std::wstring &working_directory,
                  const std::wstring &user_sid,
@@ -619,6 +653,15 @@ public:
             return false;
         }
         return InstallTask(current->first, current->second, application_id);
+    }
+    bool RevokeSilentElevation(
+            const std::string &application_id) override {
+        ComApartment apartment;
+        if (!apartment.Ready()) {
+            LogWarn("uninstall: COM apartment unavailable");
+            return false;
+        }
+        return RemoveTask(application_id);
     }
     std::optional<std::uint64_t> LaunchElevatedService(
             const std::vector<std::string> &arguments) override {

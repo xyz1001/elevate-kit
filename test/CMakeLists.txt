@@ -9,7 +9,7 @@ target_sources(unittest PRIVATE ${SRC})
 
 find_package(doctest REQUIRED CONFIG)
 
-target_link_libraries(unittest doctest::doctest elevate_kit)
+target_link_libraries(unittest doctest::doctest elevate_kit_obj)
 
 add_test(NAME unittest COMMAND unittest)
 if(WIN32)
