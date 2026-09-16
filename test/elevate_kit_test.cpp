@@ -31,17 +31,13 @@ TEST_CASE("Process returns immediately with no or one argument") {
     CHECK(elevate_kit::ApplicationId::Get() == kFinalApplicationId);
 }
 
-TEST_CASE("Process returns for invalid and incomplete CLI input") {
+TEST_CASE("Process returns for invalid CLI input") {
     elevate_kit::SetApplicationId(kFinalApplicationId);
 
     char program[] = "unittest";
     char invalid_option[] = "--not-an-elevate-kit-option";
     char *invalid_argv[] = {program, invalid_option, nullptr};
     elevate_kit::Process(2, invalid_argv);
-
-    char install_option[] = "--elevate-install";
-    char *missing_required_argv[] = {program, install_option, nullptr};
-    elevate_kit::Process(2, missing_required_argv);
 
     CHECK(elevate_kit::ApplicationId::Get() == kFinalApplicationId);
 }

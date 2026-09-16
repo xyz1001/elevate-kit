@@ -38,7 +38,6 @@ void Process(int argc, char *argv[]) {
     std::string session_id;
     bool install_requested = false;
     app.add_option("--elevate-pipe", session_id)
-            ->required()
             ->expected(1)
             ->multi_option_policy(CLI::MultiOptionPolicy::Throw)
             ->check(CLI::Validator(
@@ -57,6 +56,9 @@ void Process(int argc, char *argv[]) {
         return;
     }
 
+    if (session_id.empty() && !install_requested) {
+        return;
+    }
 #ifdef _WIN32
     FreeConsole();
 #endif
@@ -67,7 +69,10 @@ void Process(int argc, char *argv[]) {
         _exit(-1);
     }
     if (install_requested) {
-        elevation->ConfigureSilentElevation(ApplicationId::Get());
+        auto ok = elevation->ConfigureSilentElevation(ApplicationId::Get());
+        if (session_id.empty()) {
+            _exit(ok ? 0 : -1);
+        }
     }
     std::unique_ptr<INamedPipe> pipe =
             INamedPipe::Open(ApplicationId::Get(), session_id);
