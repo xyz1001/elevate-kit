@@ -2,13 +2,12 @@
 #define _GNU_SOURCE
 #endif
 
+#include "../logger.h"
 #include "../platform.h"
 #include "../silent_elevation.h"
-#include "../logger.h"
 #include "templates.h"
 
 #include <fstream>
-#include <iterator>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -37,7 +36,7 @@ std::optional<std::uint64_t> Execute(const std::vector<std::string> &args,
     if (pid == 0) {
         execvp(av[0], av.data());
         LogError("execv failed: path='{}' errno={}",
-                         args.empty() ? std::string() : args[0], errno);
+                 args.empty() ? std::string() : args[0], errno);
         _exit(127);
     }
     if (!wait) {
@@ -55,12 +54,12 @@ std::optional<std::uint64_t> Execute(const std::vector<std::string> &args,
     }
     if (WIFSIGNALED(status)) {
         LogWarn("child terminated by signal: pid={} signal={}", pid,
-                        WTERMSIG(status));
+                WTERMSIG(status));
         return std::nullopt;
     }
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         LogWarn("child exited nonzero: pid={} exit={}", pid,
-                        WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         return std::nullopt;
     }
     return static_cast<std::uint64_t>(pid);
@@ -80,20 +79,6 @@ bool WriteFile(const std::string &path, const std::string &contents) {
     return true;
 }
 
-std::string ReadFile(const std::string &path) {
-    std::ifstream fin(path);
-    if (!fin) {
-        LogError("file open failed: path='{}' errno={}", path, errno);
-        return {};
-    }
-    std::string contents((std::istreambuf_iterator<char>(fin)), {});
-    if (!fin) {
-        LogError("file read failed: path='{}' errno={}", path, errno);
-        return {};
-    }
-    return contents;
-}
-
 }  // namespace
 
 class LinuxSilentElevation final : public ISilentElevation {
@@ -111,20 +96,9 @@ public:
         std::string path = GetProcessPath(GetPid());
         std::string action_name = GeneratePolkitActionName(application_id);
         LogDebug("checking silent elevation: host='{}' action='{}'", path,
-                         action_name);
+                 action_name);
         if (!CheckExecutableFile(path)) {
             return false;
-        }
-        if (ReadFile(GetPolkitActionPath(action_name)) !=
-            fmt::format(kLinuxPolkitPolicyTemplate,
-                        fmt::arg("action", action_name),
-                        fmt::arg("host", path))) {
-            LogWarn("silent elevation policy file exists and matches");
-        }
-        if (ReadFile(GetPolkitRulePath(action_name)) !=
-            fmt::format(kLinuxPolkitRuleTemplate,
-                        fmt::arg("action", action_name))) {
-            LogWarn("silent elevation rule file exists and matches");
         }
         std::vector<std::string> args{"pkcheck", "--action-id", action_name,
                                       "--process", std::to_string(getpid())};
@@ -166,8 +140,7 @@ public:
         return true;
     }
 
-    bool RevokeSilentElevation(
-            const std::string &application_id) override {
+    bool RevokeSilentElevation(const std::string &application_id) override {
         std::string action_name = GeneratePolkitActionName(application_id);
         auto remove_file = [](const std::string &path) {
             if (unlink(path.c_str()) == 0 || errno == ENOENT) {
@@ -210,13 +183,13 @@ private:
         }
         if ((information.st_mode & S_IWOTH) != 0) {
             LogWarn("target path rejected as world-writable: mode={:#o}",
-                            static_cast<unsigned int>(information.st_mode & 07777));
+                    static_cast<unsigned int>(information.st_mode & 07777));
             return false;
         }
 #ifdef NDEBUG
         if (information.st_uid != 0) {
             LogWarn("target path rejected for non-root owner: uid={}",
-                            information.st_uid);
+                    information.st_uid);
             return false;
         }
 #endif
