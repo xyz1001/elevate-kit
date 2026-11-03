@@ -40,7 +40,7 @@ conan remote add xyz1001-conan https://gitlab.com/api/v4/projects/88391881/packa
 在项目的 `conanfile.py` 中引入：
 ```python
 def requirements(self):
-    self.requires("elevate-kit/1.0.6")
+    self.requires("elevate-kit/1.0.6@xyz1001/stable")
 ```
 
 安装并解析预编译二进制：

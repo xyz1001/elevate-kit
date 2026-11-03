@@ -40,7 +40,7 @@ conan remote add xyz1001-conan https://gitlab.com/api/v4/projects/88391881/packa
 In your `conanfile.py`:
 ```python
 def requirements(self):
-    self.requires("elevate-kit/1.0.6")
+    self.requires("elevate-kit/1.0.6@xyz1001/stable")
 ```
 
 Install and resolve binary packages:
