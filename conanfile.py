@@ -24,16 +24,11 @@ class ElevateKitConan(ConanFile):
         hash = os.getenv("GIT_COMMIT", "")[:6]
         return "%s.%s-%s" % (type, self.version, hash if hash else "unknown")
 
-    def export(self):
-        git = Git(self, self.recipe_folder)
-        scm_url, scm_commit = git.get_url_and_commit()
-        update_conandata(self, {"sources": {"commit": scm_commit, "url": scm_url}})
-
-    def source(self):
-        git = Git(self)
-        sources = self.conan_data["sources"]
-        git.clone(url=sources["url"], target=".")
-        git.checkout(commit=sources["commit"])
+    def export_sources(self):
+        copy(self, "CMakeLists.txt", self.recipe_folder, self.export_sources_folder)
+        copy(self, "LICENSE", self.recipe_folder, self.export_sources_folder)
+        copy(self, "src/*", self.recipe_folder, self.export_sources_folder)
+        copy(self, "include/*", self.recipe_folder, self.export_sources_folder)
 
     def requirements(self):
         self.requires("cli11/2.6.0")
@@ -93,6 +88,19 @@ class ElevateKitConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["elevate_kit"]
+        self.cpp_info.requires = [
+            "cli11::cli11",
+            "fmt::_fmt",
+            "nlohmann_json::nlohmann_json",
+            "scope-lite::scopelite",
+            "sole::sole",
+        ]
 
         if self.options.shared:
             self.cpp_info.defines = ["ELEVATE_KIT_DLL"]
+        if self.settings.os == "Windows":
+            self.cpp_info.system_libs = ["taskschd", "ole32", "oleaut32", "shell32", "advapi32"]
+        elif self.settings.os == "Linux":
+            self.cpp_info.system_libs = ["dl"]
+        self.cpp_info.set_property("cmake_file_name", "elevate-kit")
+        self.cpp_info.set_property("cmake_target_name", "elevate-kit::elevate-kit")
