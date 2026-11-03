@@ -11,8 +11,8 @@ Currently supports **Windows** and **Linux**; macOS and other platforms are not 
 ## Contents
 
 - [Features](#features)
-- [Dependencies](#dependencies)
-- [Build, install, and run](#build-install-and-run)
+- [Quick Start with Conan](#quick-start-with-conan)
+- [Build, install, and run from source](#build-install-and-run-from-source)
 - [Minimal API example](#minimal-api-example)
 - [Application ID](#application-id)
 - [Logging callbacks](#logging-callbacks)
@@ -29,15 +29,42 @@ Currently supports **Windows** and **Linux**; macOS and other platforms are not 
 - **Secure deployment requirements**: Windows Release requires the host to be located under Program Files; Linux Release requires the host to be owned by root and not writable by all users.
 - **Modular application support**: Statically registered tasks can be loaded from DLL/SO, supporting applications split into plugins or modules.
 
-## Dependencies
+## Quick Start with Conan
 
+### 1. Add Remote Repository (Anonymous Access)
+```bash
+conan remote add xyz1001-conan https://gitlab.com/api/v4/projects/88391881/packages/conan
+```
+
+### 2. Add Dependency
+In your `conanfile.py`:
+```python
+def requirements(self):
+    self.requires("elevate-kit/1.0.6")
+```
+
+Install and resolve binary packages:
+```bash
+conan install . --build=missing
+```
+
+### 3. Link with CMake
+In your `CMakeLists.txt`:
+```cmake
+find_package(elevate-kit CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE elevate-kit::elevate-kit)
+```
+
+---
+
+## Build, install, and run from source
+
+### Dependencies
 - CMake 3.25 or newer;
 - A C++17 compiler and Ninja;
-- Conan;
+- Conan 2.x;
 
 > **Prerequisites:** Windows requires an available MSVC/Visual Studio C++ toolchain. The real privileged flow on Arch Linux also requires `systemd`, `polkit`, and `pkexec`. This document does not provide commands for automatically installing system dependencies.
-
-## Build, install, and run
 
 ```sh
 conan install . -o example=True -o test=True
@@ -55,7 +82,7 @@ To install to a system location, configure `CMAKE_INSTALL_PREFIX` (for example, 
 The following example uses the same API form as the repository's `example/main.cpp`:
 
 ```cpp
-#include "elevate_kit/elevate_kit.h"
+#include <elevate_kit/elevate_kit.h>
 
 #include <filesystem>
 #include <fstream>

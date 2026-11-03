@@ -11,8 +11,8 @@
 ## 目录
 
 - [功能](#功能)
-- [依赖](#依赖)
-- [构建、安装与运行](#构建安装与运行)
+- [Conan 快速接入](#conan-快速接入)
+- [源码构建与安装](#源码构建与安装)
 - [最小 API 示例](#最小-api-示例)
 - [应用 ID](#应用-id)
 - [日志回调](#日志回调)
@@ -29,15 +29,41 @@
 - **安全部署约束**：Windows Release 强制宿主位于 Program Files；Linux Release 要求宿主由 root 所有且不可被所有用户写入。
 - **适配模块化应用**：支持从 DLL/SO 加载静态注册的任务，适用于插件或模块拆分的应用。
 
-## 依赖
+## Conan 快速接入
 
+### 1. 添加远端仓库（免密直接拉取）
+```bash
+conan remote add xyz1001-conan https://gitlab.com/api/v4/projects/88391881/packages/conan
+```
+
+### 2. 在项目中引入依赖
+在项目的 `conanfile.py` 中引入：
+```python
+def requirements(self):
+    self.requires("elevate-kit/1.0.6")
+```
+
+安装并解析预编译二进制：
+```bash
+conan install . --build=missing
+```
+
+### 3. 在 CMakeLists.txt 中链接
+```cmake
+find_package(elevate-kit CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE elevate-kit::elevate-kit)
+```
+
+---
+
+## 源码构建与安装
+
+### 依赖
 - CMake 3.25 或更新版本；
 - C++17 编译器和 Ninja；
-- Conan；
+- Conan 2.x；
 
 > **前置条件：** Windows 需要可用的 MSVC/Visual Studio C++ 工具链。Arch Linux 的真实特权流程还需要 `systemd`、`polkit` 和 `pkexec`。本文不提供系统依赖的自动安装命令。
-
-## 构建、安装与运行
 
 ```sh
 conan install . -o example=True -o test=True
@@ -55,7 +81,7 @@ cmake --build build --target install
 以下示例与仓库中的 `example/main.cpp` 使用相同的 API 形式：
 
 ```cpp
-#include "elevate_kit/elevate_kit.h"
+#include <elevate_kit/elevate_kit.h>
 
 #include <filesystem>
 #include <fstream>
