@@ -32,8 +32,8 @@ class ElevateKitConan(ConanFile):
 
     def requirements(self):
         self.requires("cli11/2.6.0")
-        self.requires("fmt/10.2.1")
-        self.requires("nlohmann_json/3.11.3")
+        self.requires("fmt/10.2.1", transitive_libs=not self.options.shared)
+        self.requires("nlohmann_json/3.11.3", transitive_headers=True)
         self.requires("scope-lite/0.2.0")
         self.requires("sole/1.0.4")
         if self.options.test:
